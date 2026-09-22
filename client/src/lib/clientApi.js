@@ -43,3 +43,8 @@ export const createReservation = (token, details) =>
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(details),
    });
+
+export const getReservationStatus = (token, reservationId) =>
+   request(`/reservations/${reservationId}/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+   });

@@ -24,6 +24,7 @@ const pageProps = {
    buses: (token) => ({ token }),
    routes: (token) => ({ token }),
    schedules: (token) => ({ token }),
+   bookings: (token) => ({ token }),
 };
 
 function App() {

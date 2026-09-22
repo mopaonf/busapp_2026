@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import './PaymentModal.css';
-import { createReservation } from '../../lib/clientApi';
+import { createReservation, getReservationStatus } from '../../lib/clientApi';
 
 function PaymentModal({
    trip,
@@ -13,6 +13,47 @@ function PaymentModal({
    onError,
 }) {
    const [isSubmitting, setIsSubmitting] = useState(false);
+   const [operator, setOperator] = useState('MTN');
+   const gatewayAmount = Math.max(
+      2,
+      Math.min(3, Math.ceil(totalAmount / 10000)),
+   );
+
+   const submitPayment = async (event) => {
+      event.preventDefault();
+      setIsSubmitting(true);
+      try {
+         const phone = new FormData(event.currentTarget).get('phone');
+         let result = await createReservation(passengerToken, {
+            scheduleId,
+            seats,
+            phone,
+            operator,
+         });
+         for (
+            let attempt = 0;
+            attempt < 6 && result?.reservation?.paymentStatus === 'Pending';
+            attempt += 1
+         ) {
+            await new Promise((resolve) => window.setTimeout(resolve, 3000));
+            const reservationId =
+               result.reservationId ||
+               result.reservation?._id ||
+               result.reservation?.id;
+            if (!reservationId)
+               throw new Error(
+                  'Reservation was created but no reference was returned.',
+               );
+            result = await getReservationStatus(passengerToken, reservationId);
+         }
+         onConfirm(result);
+      } catch (error) {
+         onError(error.message);
+      } finally {
+         setIsSubmitting(false);
+      }
+   };
+
    return (
       <div className="payment-modal" role="presentation" onClick={onClose}>
          <div
@@ -20,7 +61,6 @@ function PaymentModal({
             role="dialog"
             aria-modal="true"
             aria-labelledby="payment-title"
-            aria-describedby="payment-description"
             onClick={(event) => event.stopPropagation()}
          >
             <button
@@ -31,110 +71,56 @@ function PaymentModal({
             >
                ×
             </button>
-
             <div className="payment-header">
                <p className="payment-eyebrow">Secure checkout</p>
                <h2 id="payment-title">Complete your booking</h2>
-               <p id="payment-description">
+               <p>
                   Review your trip, choose a payment method, and confirm your
                   seat reservation.
                </p>
             </div>
-
             <div className="payment-layout">
                <section className="payment-form-panel">
                   <div className="payment-methods" aria-label="Payment methods">
-                     <button type="button" className="is-active">
-                        Card
+                     <button
+                        type="button"
+                        className={operator === 'MTN' ? 'is-active' : ''}
+                        onClick={() => setOperator('MTN')}
+                     >
+                        MTN Mobile Money
                      </button>
-                     <button type="button">Mobile money</button>
-                     <button type="button">Wallet</button>
+                     <button
+                        type="button"
+                        className={operator === 'ORANGE' ? 'is-active' : ''}
+                        onClick={() => setOperator('ORANGE')}
+                     >
+                        Orange Money
+                     </button>
                   </div>
-
-                  <form
-                     className="payment-form"
-                     onSubmit={async (event) => {
-                        event.preventDefault();
-                        setIsSubmitting(true);
-                        try {
-                           const result = await createReservation(
-                              passengerToken,
-                              {
-                                 scheduleId,
-                                 seats,
-                              },
-                           );
-                           onConfirm(result);
-                        } catch (error) {
-                           onError(error.message);
-                        } finally {
-                           setIsSubmitting(false);
-                        }
-                     }}
-                  >
+                  <form className="payment-form" onSubmit={submitPayment}>
                      <label>
-                        <span>Cardholder name</span>
-                        <input
-                           type="text"
-                           placeholder="Enter name on card"
-                           autoComplete="cc-name"
-                           required
-                        />
-                     </label>
-                     <label>
-                        <span>Card number</span>
-                        <input
-                           type="text"
-                           inputMode="numeric"
-                           placeholder="1234 5678 9012 3456"
-                           autoComplete="cc-number"
-                           required
-                        />
-                     </label>
-                     <div className="payment-grid">
-                        <label>
-                           <span>Expiry</span>
-                           <input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="MM/YY"
-                              autoComplete="cc-exp"
-                              required
-                           />
-                        </label>
-                        <label>
-                           <span>CVV</span>
-                           <input
-                              type="password"
-                              inputMode="numeric"
-                              placeholder="123"
-                              autoComplete="cc-csc"
-                              required
-                           />
-                        </label>
-                     </div>
-                     <label>
-                        <span>Phone number</span>
+                        <span>Mobile money phone number</span>
                         <input
                            type="tel"
-                           placeholder="(237) 6xx xxx xxx"
+                           name="phone"
+                           inputMode="numeric"
+                           placeholder="677018361"
                            autoComplete="tel"
+                           pattern="[0-9 ]{9,13}"
                            required
                         />
                      </label>
-
                      <button
                         type="submit"
                         className="payment-submit"
                         disabled={isSubmitting}
                      >
                         {isSubmitting
-                           ? 'Processing reservation...'
+                           ? 'Processing payment...'
                            : `Pay ${totalAmount.toLocaleString()} FCFA`}
                      </button>
                   </form>
                </section>
-
                <aside className="payment-summary-panel">
                   <div className="payment-summary-card">
                      <span className="payment-summary-kicker">
@@ -144,7 +130,6 @@ function PaymentModal({
                         {trip.route.origin} → {trip.route.destination}
                      </h3>
                      <p>{trip.agency.name}</p>
-
                      <dl>
                         <div>
                            <dt>Bus</dt>
@@ -156,20 +141,20 @@ function PaymentModal({
                         </div>
                         <div>
                            <dt>Seats</dt>
-                           <dd>{seats.join(', ') || 'No seats selected'}</dd>
+                           <dd>{seats.join(', ')}</dd>
                         </div>
                         <div>
-                           <dt>Total</dt>
+                           <dt>Ticket total</dt>
                            <dd>{totalAmount.toLocaleString()} FCFA</dd>
                         </div>
                      </dl>
                   </div>
-
                   <div className="payment-note">
-                     <strong>Payment protected</strong>
+                     <strong>Campay test mode</strong>
                      <p>
-                        This is a demo checkout flow. It is styled to match the
-                        booking experience and ready for a real gateway later.
+                        Campay will receive a transparent test charge of{' '}
+                        {gatewayAmount} FCFA. The booking record keeps the full
+                        ticket total of {totalAmount.toLocaleString()} FCFA.
                      </p>
                   </div>
                </aside>

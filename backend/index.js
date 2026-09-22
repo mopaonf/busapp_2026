@@ -8,6 +8,7 @@ const agencyCrudRouter = require('./src/routes/agencyCrud');
 const passengerAuthRouter = require('./src/routes/passengerAuth');
 const publicTripsRouter = require('./src/routes/publicTrips');
 const reservationsRouter = require('./src/routes/reservations');
+const agencyBookingsRouter = require('./src/routes/agencyBookings');
 const seedAgencyAdmin = require('./src/services/seedAgencyAdmin');
 const seedAgencyData = require('./src/services/seedAgencyData');
 
@@ -29,6 +30,7 @@ app.use('/api/agency', agencyCrudRouter);
 app.use('/api/auth/passenger', passengerAuthRouter);
 app.use('/api/public', publicTripsRouter);
 app.use('/api/reservations', reservationsRouter);
+app.use('/api/agency/bookings', agencyBookingsRouter);
 
 app.get('/api/health', (request, response) => {
    response.json({

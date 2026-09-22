@@ -29,6 +29,7 @@ function BookSeatPage({
    const [isPassengerAuthOpen, setIsPassengerAuthOpen] = useState(false);
    const [isPaymentComplete, setIsPaymentComplete] = useState(false);
    const [paymentError, setPaymentError] = useState('');
+   const [paymentMessage, setPaymentMessage] = useState('');
 
    const seatLayout = trip?.bus?.seatLayout ?? defaultSeatLayout;
 
@@ -323,8 +324,8 @@ function BookSeatPage({
                   </button>
                   {isPaymentComplete ? (
                      <div className="payment-success-banner" role="status">
-                        <strong>Payment complete.</strong>
-                        <span>Your booking is confirmed.</span>
+                        <strong>{paymentMessage}</strong>
+                        <span>Keep your payment reference for support.</span>
                      </div>
                   ) : null}
                   {paymentError ? (
@@ -346,10 +347,15 @@ function BookSeatPage({
                scheduleId={trip.id}
                passengerToken={passengerAuth?.token}
                onClose={() => setIsPaymentOpen(false)}
-               onConfirm={() => {
+               onConfirm={(result) => {
                   setIsPaymentOpen(false);
                   setIsPaymentComplete(true);
                   setPaymentError('');
+                  setPaymentMessage(
+                     result?.reservation?.paymentStatus === 'Completed'
+                        ? 'Payment complete. Your booking is confirmed.'
+                        : 'Payment request sent. Your booking is pending confirmation.',
+                  );
                   setSelectedSeats([]);
                }}
                onError={setPaymentError}

@@ -18,6 +18,19 @@ const reservationSchema = new mongoose.Schema(
          validate: (value) => value.length > 0,
       },
       amount: { type: Number, required: true, min: 0 },
+      gatewayAmount: { type: Number, required: true, min: 0 },
+      gateway: { type: String, default: 'campay' },
+      paymentOperator: {
+         type: String,
+         enum: ['MTN', 'ORANGE'],
+         default: 'MTN',
+      },
+      paymentReference: { type: String, default: '' },
+      paymentStatus: {
+         type: String,
+         enum: ['Pending', 'Completed', 'Failed'],
+         default: 'Pending',
+      },
       status: {
          type: String,
          enum: ['Confirmed', 'Cancelled'],
