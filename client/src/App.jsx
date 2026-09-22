@@ -38,6 +38,7 @@ const slides = [
       copy: 'From quick getaways to long-distance travel, BusBy gets you moving.',
    },
 ];
+const HOME_HISTORY_STATE = { busbyView: 'home' };
 
 function App() {
    const [activeSlide, setActiveSlide] = useState(0);
@@ -55,6 +56,36 @@ function App() {
          return null;
       }
    });
+
+   useEffect(() => {
+      if (window.history.state?.busbyView) return;
+
+      window.history.replaceState(HOME_HISTORY_STATE, '', window.location.href);
+   }, []);
+
+   useEffect(() => {
+      const handlePopState = (event) => {
+         const view = event.state?.busbyView ?? 'home';
+
+         if (view === 'booking' && event.state.trip) {
+            setSearch(event.state.search);
+            setSelectedTrip(event.state.trip);
+            return;
+         }
+
+         if (view === 'results' && event.state.search) {
+            setSearch(event.state.search);
+            setSelectedTrip(null);
+            return;
+         }
+
+         setSelectedTrip(null);
+         setSearch(null);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+   }, []);
 
    useEffect(() => {
       getLocations()
@@ -94,9 +125,42 @@ function App() {
       event.preventDefault();
       setIsLoading(true);
       window.setTimeout(() => {
-         setSearch({ origin, destination, seats: Number(seats) });
+         const nextSearch = { origin, destination, seats: Number(seats) };
+         window.history.pushState(
+            { busbyView: 'results', search: nextSearch },
+            '',
+            window.location.href,
+         );
+         setSearch(nextSearch);
          setIsLoading(false);
       }, 2000);
+   };
+
+   const handleResultsSearch = (nextSearch) => {
+      window.history.pushState(
+         { busbyView: 'results', search: nextSearch },
+         '',
+         window.location.href,
+      );
+      setSearch(nextSearch);
+   };
+
+   const handleSelectTrip = (trip) => {
+      window.history.pushState(
+         { busbyView: 'booking', search, trip },
+         '',
+         window.location.href,
+      );
+      setSelectedTrip(trip);
+   };
+
+   const handleBackToHome = () => {
+      if (window.history.state?.busbyView === 'results') {
+         window.history.back();
+         return;
+      }
+
+      setSearch(null);
    };
 
    if (selectedTrip) {
@@ -107,7 +171,7 @@ function App() {
             passengerAuth={passengerAuth}
             onPassengerAuthenticated={handlePassengerAuthenticated}
             onPassengerLogout={handlePassengerLogout}
-            onBack={() => setSelectedTrip(null)}
+            onBack={() => window.history.back()}
          />
       );
    }
@@ -116,9 +180,9 @@ function App() {
       return (
          <AvailableBusesPage
             search={search}
-            onSearch={setSearch}
-            onBack={() => setSearch(null)}
-            onSelectTrip={setSelectedTrip}
+            onSearch={handleResultsSearch}
+            onBack={handleBackToHome}
+            onSelectTrip={handleSelectTrip}
             passengerAuth={passengerAuth}
             onPassengerAuthenticated={handlePassengerAuthenticated}
             onPassengerLogout={handlePassengerLogout}
